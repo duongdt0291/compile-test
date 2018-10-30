@@ -30,9 +30,9 @@ func main() {
 }
 
 func handleTest(ctx *gin.Context) {
-	ch := make(chan string, 100)
+	ch := make(chan string, 200)
 	startTime := time.Now()
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		go handler.CreateContainer(strconv.Itoa(i), "go", ch)
 	}
 	<-ch
