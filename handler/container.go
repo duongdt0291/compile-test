@@ -1,27 +1,29 @@
 package handler
 
 import (
+	"log"
 	"os/exec"
 	"regexp"
-
-	"dev.hocngay.com/hocngay/compile-test/constant"
 )
 
 // Khởi tạo container
-func CreateContainer(containerName, language string, ch chan string) (string, error) {
+func CreateContainer(containerName, language string) (string, error) {
 
-	// C và C++ dùng chung image
-	if language == "c++" {
-		language = "c"
-	}
+	// // C và C++ dùng chung image
+	// if language == "c++" {
+	// 	language = "c"
+	// }
 
 	isExist := isContainerExist(containerName)
 	if isExist {
 		return containerName, nil
 	}
-
-	_, err := exec.Command("docker", "run", "-id", "--rm", "--name", containerName, constant.ImageCompilerPrefix+language).Output()
-	ch <- "done"
+	//constant.ImageCompilerPrefix+language
+	_, err := exec.Command("docker", "run", "-id", "--name", containerName, "compiler-go").Output()
+	if err != nil {
+		log.Println("err: ", err)
+	}
+	// ch <- "done"
 	return containerName, err
 }
 
