@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"time"
 
 	"dev.hocngay.com/hocngay/compile-test/constant"
 	"dev.hocngay.com/hocngay/compile-test/model"
@@ -41,6 +42,7 @@ type WsPty struct {
 }
 
 func HandlerCompile(containerName, language, content string, ch chan string) ([]byte, error) {
+	startTime := time.Now()
 	isAllow := checkLanguage(language)
 	if !isAllow {
 		return nil, errors.New("Không hỗ trợ ngôn ngữ này")
@@ -113,6 +115,7 @@ func HandlerCompile(containerName, language, content string, ch chan string) ([]
 			StartManual([]string{"docker", "exec", "-it", containerName, "./" + binaryFileName})
 
 		case "go":
+
 			StartManual([]string{"docker", "exec", "-it", containerName, "go", "run", fileName})
 
 		case "java":
@@ -141,6 +144,8 @@ func HandlerCompile(containerName, language, content string, ch chan string) ([]
 			StartManual([]string{"docker", "exec", "-it", containerName, "ruby", fileName})
 		}
 	}
+	totalTime := time.Since(startTime)
+	fmt.Println("Time 1:", totalTime)
 
 	ch <- "done"
 	return nil, nil
@@ -160,6 +165,8 @@ func checkLanguage(language string) bool {
 }
 
 func HandlerCompile2(language, content string, ch chan string, queue *model.Queue, m *sync.Mutex) ([]byte, error) {
+	startTime := time.Now()
+
 	// fmt.Println(queue[language])
 	isAllow := checkLanguage(language)
 	if !isAllow {
@@ -241,9 +248,12 @@ func HandlerCompile2(language, content string, ch chan string, queue *model.Queu
 		switch language {
 		case "go":
 			StartManual([]string{"docker", "exec", "-it", containerName, "go", "run", fileName})
+
 		}
 	}
 	// RemoveContainer(containerName)
+	totalTime := time.Since(startTime)
+	fmt.Println("Time 2:", totalTime)
 	ch <- "done"
 	return nil, nil
 }

@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"dev.hocngay.com/hocngay/compile-test/handler"
 	"dev.hocngay.com/hocngay/compile-test/model"
 	"github.com/gin-gonic/gin"
-	"github.com/rs/xid"
 )
 
 var m sync.Mutex
@@ -39,38 +37,15 @@ func main() {
 }
 
 func handleTest(ctx *gin.Context) {
-	ch := make(chan string, 100)
-	startTime := time.Now()
-	for i := 0; i < 100; i++ {
-		// go handler.CreateContainer(strconv.Itoa(i), "go", ch)
+	//C1 (hiện tại) : khi nào người dùng req mới tạo container
+	// ch := make(chan string, 20)
 
-		//test time khi nguoi dung request moi tao container
-		containerName := xid.New().String()
-		go handler.HandlerCompile(containerName, "go", `
-		package main\n
-		import "fmt"\n
-		func main() {\n
-			sum := 0\n
-			for i := 0; i < 10; i++ {\n
-				sum += i\n
-			}\n
-			fmt.Println(sum)\n
-		}`, ch)
-
-	}
-	<-ch
-
-	totalTime := time.Since(startTime)
-	fmt.Println("Time execute:", totalTime)
-
-	// C222222
-	// ch := make(chan string, 50)
-	// startTime := time.Now()
-	// for i := 0; i < 50; i++ {
+	// for i := 0; i < 20; i++ {
 	// 	// go handler.CreateContainer(strconv.Itoa(i), "go", ch)
 
 	// 	//test time khi nguoi dung request moi tao container
-	// 	go handler.HandlerCompile2("go", `
+	// 	containerName := xid.New().String()
+	// 	go handler.HandlerCompile(containerName, "go", `
 	// 	package main\n
 	// 	import "fmt"\n
 	// 	func main() {\n
@@ -79,12 +54,26 @@ func handleTest(ctx *gin.Context) {
 	// 			sum += i\n
 	// 		}\n
 	// 		fmt.Println(sum)\n
-	// 	}`, ch, &queue, &m)
+	// 	}`, ch)
 
 	// }
 	// <-ch
 
-	// totalTime := time.Since(startTime)
-	// fmt.Println("Time execute:", totalTime)
+	// C2: tạo sẵn 5 container cho từng ngôn ngữ
+	ch := make(chan string, 20)
+	for i := 0; i < 20; i++ {
+		go handler.HandlerCompile2("go", `
+		package main\n
+		import "fmt"\n
+		func main() {\n
+			sum := 0\n
+			for i := 0; i < 10; i++ {\n
+				sum += i\n
+			}\n
+			fmt.Println(sum)\n
+		}`, ch, &queue, &m)
+
+	}
+	<-ch
 
 }
