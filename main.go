@@ -4,34 +4,37 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
-	"dev.hocngay.com/hocngay/compile-test/handler"
-	"dev.hocngay.com/hocngay/compile-test/model"
+	"git.hocngay.com/hocngay/compile-test/handler"
 	"github.com/gin-gonic/gin"
-	"github.com/panjf2000/ants"
+	"github.com/rs/xid"
 )
 
 var m sync.Mutex
-var queue = model.Queue{}
+var containers []string = []string{}
+
+func init() {
+	fmt.Println(1)
+	containers = handler.InitCreCont(containers)
+	fmt.Println(containers)
+}
 
 func main() {
 	r := gin.Default()
 
-	// handler.Init()
+	go TrackingContainers(containers)
 
-	handler.InitCreCont(&queue)
+	r.GET("/containers", handleTestContainers)
 
-	fmt.Println(queue.Go)
-	// Test with worker pool
-	p, _ := ants.NewPoolWithFunc(15, func(i interface{}) error {
-		handleTest(i.(*gin.Context))
-		return nil
-	})
+	// // Test with worker pool
+	// p, _ := ants.NewPoolWithFunc(15, func(i interface{}) error {
+	// 	handleTest(i.(*gin.Context))
+	// 	return nil
+	// })
 
-	r.GET("/test", func(ctx *gin.Context) {
-		p.Serve(ctx)
-	})
+	// r.GET("/test", func(ctx *gin.Context) {
+	// 	p.Serve(ctx)
+	// })
 
 	//Run service
 	port := os.Getenv("PORT")
@@ -43,6 +46,27 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// C2: tạo sẵn 5 container cho từng ngôn ngữ
+func handleTestContainers(ctx *gin.Context) {
+	ch := make(chan string, 10)
+	for i := 0; i < 10; i++ {
+		go handler.HandlerCompile2("go", `
+		package main\n
+		import "fmt"\n
+		func main() {\n
+			sum := 0\n
+			for i := 0; i < 10; i++ {\n
+				sum += i\n
+			}\n
+			fmt.Println(sum)\n
+		}`, ch, containers, &m)
+	}
+	for v := range <-ch {
+		fmt.Println(v)
+	}
+	fmt.Println(containers)
 }
 
 func handleTest(ctx *gin.Context) {
@@ -68,10 +92,10 @@ func handleTest(ctx *gin.Context) {
 	// }
 	// <-ch
 
-	// C2: tạo sẵn 5 container cho từng ngôn ngữ
-	// ch := make(chan string, 20)
-	// for i := 0; i < 20; i++ {
-	// 	go handler.HandlerCompile2("go", `
+	//C3 Pool worker
+	// ch := make(chan string, 1)
+	// startTime := time.Now()
+	// go handler.HandlerCompile3("go", `
 	// 	package main\n
 	// 	import "fmt"\n
 	// 	func main() {\n
@@ -80,25 +104,21 @@ func handleTest(ctx *gin.Context) {
 	// 			sum += i\n
 	// 		}\n
 	// 		fmt.Println(sum)\n
-	// 	}`, ch, &queue, &m)
-	// }
+	// 	}`, &queue, &m, ch)
 	// <-ch
 
-	//C3 Pool worker
-	ch := make(chan string, 1)
-	startTime := time.Now()
-	go handler.HandlerCompile3("go", `
-		package main\n
-		import "fmt"\n
-		func main() {\n
-			sum := 0\n
-			for i := 0; i < 10; i++ {\n
-				sum += i\n
-			}\n
-			fmt.Println(sum)\n
-		}`, &queue, &m, ch)
-	<- ch	
+	// totalTime := time.Since(startTime)
+	// fmt.Println("Time 3:", totalTime)
+}
 
-	totalTime := time.Since(startTime)
-	fmt.Println("Time 3:", totalTime)
+func TrackingContainers(containers []string) {
+	for {
+		if len(containers) < 5 {
+			newContainerName := xid.New().String()
+			_, err := handler.CreateContainer(newContainerName, "go")
+			if err == nil {
+				containers = append(containers, newContainerName)
+			}
+		}
+	}
 }

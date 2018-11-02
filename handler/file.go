@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/exec"
 
-	"dev.hocngay.com/hocngay/compile-test/constant"
+	"git.hocngay.com/hocngay/compile-test/constant"
 	"github.com/rs/xid"
 )
 

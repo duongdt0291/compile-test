@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"dev.hocngay.com/hocngay/compile-test/constant"
-	"dev.hocngay.com/hocngay/compile-test/model"
+	"git.hocngay.com/hocngay/compile-test/constant"
 
 	"github.com/rs/xid"
 	"github.com/sirupsen/logrus"
@@ -34,19 +33,17 @@ func buildImages(language string) {
 	logrus.Infof("%s", out)
 }
 
-func InitCreCont(queue *model.Queue) {
+func InitCreCont(containers []string) {
 	for _, language := range constant.AllowLanguage {
-		buildImages2(language, queue)
+		buildImages2(language, containers)
 	}
 }
 
-func buildImages2(language string, queue *model.Queue) {
+func buildImages2(language string, containers []string) {
 	// C và C++ dùng chung image
 	if language == "c++" {
 		language = "c"
 	}
-
-	// capLanguage := strings.Title(language)
 
 	out, err := exec.Command("docker", "build", "-t", constant.ImageCompilerPrefix+language, constant.LocalBuildDir+"/"+language+"/.").Output()
 
@@ -64,11 +61,7 @@ func buildImages2(language string, queue *model.Queue) {
 			i--
 			continue
 		}
-		newContainer := &model.ContainerInfo{
-			Id:        id,
-			IsRunning: false,
-		}
-		queue.Go = append(queue.Go, newContainer)
+		containers = append(containers, id)
+		fmt.Println(i, containers)
 	}
-
 }

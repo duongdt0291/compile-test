@@ -9,8 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"dev.hocngay.com/hocngay/compile-test/constant"
-	"dev.hocngay.com/hocngay/compile-test/model"
+	"git.hocngay.com/hocngay/compile-test/constant"
 	"github.com/kr/pty"
 	"github.com/rs/xid"
 )
@@ -164,10 +163,7 @@ func checkLanguage(language string) bool {
 	return isAllow
 }
 
-func HandlerCompile2(language, content string, ch chan string, queue *model.Queue, m *sync.Mutex) ([]byte, error) {
-	startTime := time.Now()
-
-	// fmt.Println(queue[language])
+func HandlerCompile2(language, content string, ch chan string, containers []string, m *sync.Mutex) ([]byte, error) {
 	isAllow := checkLanguage(language)
 	if !isAllow {
 		return nil, errors.New("Không hỗ trợ ngôn ngữ này")
@@ -189,49 +185,35 @@ func HandlerCompile2(language, content string, ch chan string, queue *model.Queu
 		ch1 <- "done"
 	}()
 
-	lenCon := len(queue.Go)
-	containerName := xid.New().String()
-	count := 0
-
 	m.Lock()
-	for i := 0; i < lenCon; i++ {
-		if queue.Go[i].IsRunning == false {
-			containerName = queue.Go[i].Id
-			queue.Go[i].IsRunning = true
-			break
+	createNewContainer := false
+	lenCon := len(containers)
+	var containerName string
+	if lenCon > 0 {
+		containerName = containers[0]
+		if lenCon > 1 {
+			containers = containers[1:]
+		} else {
+			containers = []string{}
 		}
-		count++
+	} else {
+		containerName = xid.New().String()
+		createNewContainer = true
 	}
 	m.Unlock()
 
-	if count == lenCon {
+	if createNewContainer == true {
 		// Tạo container
 		go func() {
 			_, err := CreateContainer(containerName, language)
 			if err != nil {
 				fmt.Println("Loi tao container:", err)
 				ch2 <- err.Error()
-			} else {
-				newContainer := &model.ContainerInfo{
-					Id:        containerName,
-					IsRunning: true,
-				}
-				queue.Go = append(queue.Go, newContainer)
 			}
 			ch2 <- "done"
 		}()
 	} else {
 		ch2 <- "done"
-		newContainerId := xid.New().String()
-		//TODO: có cần chạy while để chắc chắc container mới được tạo ko?
-		go func() {
-			CreateContainer(newContainerId, language)
-			newContainer := &model.ContainerInfo{
-				Id:        newContainerId,
-				IsRunning: false,
-			}
-			queue.Go = append(queue.Go, newContainer)
-		}()
 	}
 
 	result1 := <-ch1
@@ -248,102 +230,100 @@ func HandlerCompile2(language, content string, ch chan string, queue *model.Queu
 		switch language {
 		case "go":
 			StartManual([]string{"docker", "exec", "-it", containerName, "go", "run", fileName})
-
 		}
 	}
+	// time.Sleep(time.Second)
 	// RemoveContainer(containerName)
-	totalTime := time.Since(startTime)
-	fmt.Println("Time 2:", totalTime)
 	ch <- "done"
 	return nil, nil
 }
 
-func HandlerCompile3(language, content string, queue *model.Queue, m *sync.Mutex, ch chan string) ([]byte, error) {
+// func HandlerCompile3(language, content string, queue *model.Queue, m *sync.Mutex, ch chan string) ([]byte, error) {
 
-	// fmt.Println(queue[language])
-	isAllow := checkLanguage(language)
-	if !isAllow {
-		return nil, errors.New("Không hỗ trợ ngôn ngữ này")
-	}
+// 	// fmt.Println(queue[language])
+// 	isAllow := checkLanguage(language)
+// 	if !isAllow {
+// 		return nil, errors.New("Không hỗ trợ ngôn ngữ này")
+// 	}
 
-	var localFilePath, fileName string
-	ch1 := make(chan string, 1)
-	ch2 := make(chan string, 1)
+// 	var localFilePath, fileName string
+// 	ch1 := make(chan string, 1)
+// 	ch2 := make(chan string, 1)
 
-	// Tạo file trên local từ code
-	go func() {
-		var err error
-		localFilePath, fileName, err = CreateFileCompile(language, content)
+// 	// Tạo file trên local từ code
+// 	go func() {
+// 		var err error
+// 		localFilePath, fileName, err = CreateFileCompile(language, content)
 
-		if err != nil {
-			fmt.Println("Loi tao file")
-			ch1 <- err.Error()
-		}
-		ch1 <- "done"
-	}()
+// 		if err != nil {
+// 			fmt.Println("Loi tao file")
+// 			ch1 <- err.Error()
+// 		}
+// 		ch1 <- "done"
+// 	}()
 
-	lenCon := len(queue.Go)
-	containerName := xid.New().String()
-	count := 0
+// 	lenCon := len(queue.Go)
+// 	containerName := xid.New().String()
+// 	count := 0
 
-	m.Lock()
-	for i := 0; i < lenCon; i++ {
-		if queue.Go[i].IsRunning == false {
-			containerName = queue.Go[i].Id
-			queue.Go[i].IsRunning = true
-			break
-		}
-		count++
-	}
-	m.Unlock()
+// 	m.Lock()
+// 	for i := 0; i < lenCon; i++ {
+// 		if queue.Go[i].IsRunning == false {
+// 			containerName = queue.Go[i].Id
+// 			queue.Go[i].IsRunning = true
+// 			break
+// 		}
+// 		count++
+// 	}
+// 	m.Unlock()
 
-	if count == lenCon {
-		// Tạo container
-		go func() {
-			_, err := CreateContainer(containerName, language)
-			if err != nil {
-				fmt.Println("Loi tao container:", err)
-				ch2 <- err.Error()
-			} else {
-				newContainer := &model.ContainerInfo{
-					Id:        containerName,
-					IsRunning: true,
-				}
-				queue.Go = append(queue.Go, newContainer)
-			}
-			ch2 <- "done"
-		}()
-	} else {
-		ch2 <- "done"
-		newContainerId := xid.New().String()
-		//TODO: có cần chạy while để chắc chắc container mới được tạo ko?
-		go func() {
-			CreateContainer(newContainerId, language)
-			newContainer := &model.ContainerInfo{
-				Id:        newContainerId,
-				IsRunning: false,
-			}
-			queue.Go = append(queue.Go, newContainer)
-		}()
-	}
+// 	if count == lenCon {
+// 		// Tạo container
+// 		go func() {
+// 			_, err := CreateContainer(containerName, language)
+// 			if err != nil {
+// 				fmt.Println("Loi tao container:", err)
+// 				ch2 <- err.Error()
+// 			} else {
+// 				newContainer := &model.ContainerInfo{
+// 					Id:        containerName,
+// 					IsRunning: true,
+// 				}
+// 				queue.Go = append(queue.Go, newContainer)
+// 			}
+// 			ch2 <- "done"
+// 		}()
+// 	} else {
+// 		ch2 <- "done"
+// 		newContainerId := xid.New().String()
+// 		//TODO: có cần chạy while để chắc chắc container mới được tạo ko?
+// 		go func() {
+// 			CreateContainer(newContainerId, language)
+// 			newContainer := &model.ContainerInfo{
+// 				Id:        newContainerId,
+// 				IsRunning: false,
+// 			}
+// 			queue.Go = append(queue.Go, newContainer)
+// 		}()
+// 	}
 
-	result1 := <-ch1
-	result2 := <-ch2
+// 	result1 := <-ch1
+// 	result2 := <-ch2
 
-	if result1 == "done" && result2 == "done" {
-		err := copyFileCompile(localFilePath, containerName, constant.ContainerRunDir)
-		if err != nil {
-			fmt.Println("Loi copy file")
-			log.Println(err)
-		}
+// 	if result1 == "done" && result2 == "done" {
+// 		err := copyFileCompile(localFilePath, containerName, constant.ContainerRunDir)
+// 		if err != nil {
+// 			fmt.Println("Loi copy file")
+// 			log.Println(err)
+// 		}
 
-		// Thực thi file
-		switch language {
-		case "go":
-			StartManual([]string{"docker", "exec", "-it", containerName, "go", "run", fileName})
+// 		// Thực thi file
+// 		switch language {
+// 		case "go":
+// 			StartManual([]string{"docker", "exec", "-it", containerName, "go", "run", fileName})
 
-		}
-	}
-	ch <- "done"
-	return nil, nil
-}
+// 		}
+// 	}
+// 	ch <- "done"
+// 	return nil, nil
+// }
